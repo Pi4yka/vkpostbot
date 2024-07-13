@@ -1,7 +1,7 @@
 import os
 
 # check user_id in admin_id array
-def getAdmin(user_id):
+def checkAdmin(user_id):
     check = False
     ADMIN_ID = os.getenv('ADMIN_ID')
 
