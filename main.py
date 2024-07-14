@@ -3,8 +3,9 @@ import os, logging
 from dotenv import load_dotenv
 from health_ping import HealthPing
 import telebot
+import vk
 
-from controllers import admin
+from controllers import admin, generateData
 
 # Загрузка переменных окружения из .env файла
 load_dotenv()
@@ -22,53 +23,51 @@ logging.basicConfig(
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
+
+APIVersionVk = 5.131
+vkApi = vk.API(access_token=VK_TOKEN)
+vkApi.auth() 
+session_apiVk = vkApi.get_api(v=APIVersionVk)
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
-    
-
-@bot.message_handler(commands=['start'])
-def send_welcome(message):
-    user_id = message.from_user.id
-
-    if (admin.checkAdmin(user_id)):
-        bot.send_message(user_id, "Привет! Я бот 'Котов и Эмо', могу посмотреть предложку или предложить пост сам")
-    else:
-        bot.send_message(user_id, "Привет! Я бот 'Котов и Эмо', но ты незнакомый мне человек.")
 
 
 # inline клавиатура
-@bot.message_handler(commands=['help'])
-def help_handler(message):
-    markup = telebot.types.InlineKeyboardMarkup()
-    show_suggestion_post = telebot.types.InlineKeyboardButton("Suggestion Posts", callback_data='show_suggestion_post')
-    generate_post = telebot.types.InlineKeyboardButton("Generate Post", callback_data='generate_post')
-    another = telebot.types.InlineKeyboardButton("Another", callback_data='another')
-    markup.row(show_suggestion_post, generate_post)
-    markup.row(another)
-    bot.send_message(message.chat.id, "Выбери что ты хочешь сделать", reply_markup=markup)
-
-
-# Обработчик команды сделать заметку
-@bot.message_handler(commands=['show_suggestion_post'])
-def show_suggestion_post(message):
+@bot.message_handler(commands=['start'])
+def start_message(message):
+    user_id = message.from_user.id
     chat_id = message.chat.id
-    bot.send_message(chat_id, "Сформированные посты из предложки")
-    # bot.register_next_step_handler(message, save_note)
+
+    if (admin.checkAdmin(user_id)):
+        # bot.send_message(user_id, "Привет! Я бот 'Котов и Эмо', могу посмотреть предложку или предложить пост сам")
+
+        keyboard = telebot.types.InlineKeyboardMarkup()
+        btn_suggestion = telebot.types.InlineKeyboardButton(text="Предложка", callback_data='suggestion')
+        btn_gen_post = telebot.types.InlineKeyboardButton(text="Создать пост", callback_data = 'generate_post')
+        keyboard.add(btn_suggestion, btn_gen_post)
+        bot.send_message(chat_id,
+                        'Привет! Я бот "Котов и Емо", могу посмотреть предложку или предложить пост сам',
+                        reply_markup=keyboard)
+    else:
+        bot.send_message(user_id, "Привет! Я бот 'Котов и Эмо', но ты незнакомый мне человек.\nПодписывайся на наш паблик: https://vk.com/emomew")
 
 
-# Обработчик команды сделать заметку
-@bot.message_handler(commands=['generate_post'])
-def generate_post(message):
+@bot.callback_query_handler(func=lambda call: call.data == 'suggestion')
+def suggestion_post(call):
+    message = call.message
     chat_id = message.chat.id
-    bot.send_message(chat_id, "Генерирую фото кота...")
-    # bot.register_next_step_handler(message, save_note)
+    bot.send_message(chat_id, f'Предложенные посты в паблике:')
 
 
-# Обработчик команды сделать заметку
-@bot.message_handler(commands=['another'])
-def another(message):
+@bot.callback_query_handler(func=lambda call: call.data == 'generate_post')
+def suggestion_post(call):
+    message = call.message
     chat_id = message.chat.id
-    bot.send_message(chat_id, "Когда нибудь тут что то будет")
-    # bot.register_next_step_handler(message, save_note)
+    bot.send_message(chat_id, f'Сгенерируем пост для паблика')
+    # genPost = generateData.generatePost.generateImg()
+    # bot.send_photo(chat_id, genPost)
+    session_apiVk.wall.post(from_group=1, message="TESTPOST", v=APIVersionVk)
+    bot.send_message(chat_id, f'post is publicaed!')
+    
 
 def main():
     """Run the bot."""
